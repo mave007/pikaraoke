@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block header %}
+<title>{% trans %}History{% endtrans %}</title>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  $(function () {
+    $("form[action*='enqueue_by_title']").on("submit", function(e) {
+      e.preventDefault();
+      var songTitle = $(this).find('input[name="song_title"]').val();
+      if (!confirm('Add \'' + songTitle + '\' to queue?')) return;
+      $.ajax({
+        url: "{{ url_for('queue.enqueue_by_title') }}",
+        type: "post",
+        data: $(this).serialize() + "&ajax=1",
+        success: function (data) {
+          var obj = data;
+          if (obj.success) {
+            showNotification(obj.message, "is-success");
+          } else {
+            showNotification(obj.message, "is-danger");
+          }
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+<h1 class="title">{% trans %}Song Play History{% endtrans %}</h1>
+{% if is_admin %}
+<p><a href="{{ url_for('admin_history.admin_history') }}">{% trans %}Go to Admin History{% endtrans %}</a></p>
+{% endif %}
+
+<div class="columns">
+    <div class="column">
+<div class="columns">
+    <div class="column">
+        <h2 class="subtitle">{% if date_filter and user_filter %}Songs from {{ date_filter }} by {{ user_filter }} <a href="{{ url_for('history.history', limit=limit) }}">(Clear)</a>{% elif date_filter %}Songs from {{ date_filter }} <a href="{{ url_for('history.history', limit=limit) }}">(Clear)</a>{% elif user_filter %}Songs by {{ user_filter }} <a href="{{ url_for('history.history', limit=limit) }}">(Clear)</a>{% else %}Latest Songs{% endif %} <a href="{{ url_for('history.history', date=date_filter, user=user_filter, limit=limit) }}" class="button is-small is-pulled-right">Refresh</a></h2>
+        <form method="get" action="{{ url_for('history.history') }}" class="field is-grouped">
+            <div class="control">
+                <input class="input" type="text" name="user" value="{{ user_filter or '' }}" placeholder="Filter by user" list="users">
+                <datalist id="users">
+                    {% for user in distinct_users %}
+                    <option value="{{ user }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="control">
+                <input class="input" type="text" name="date" value="{{ date_filter or '' }}" placeholder="Filter by date (YYYY-MM-DD)" list="dates">
+                <datalist id="dates">
+                    {% for date in distinct_dates %}
+                    <option value="{{ date }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="control">
+                <button type="submit" class="button is-primary">Filter</button>
+            </div>
+        </form>
+        <div class="field is-grouped">
+            <p class="control">
+                <a href="{{ url_for('history.history', limit=5, offset=0) }}" class="button {% if limit == 5 %}is-primary{% endif %}">5</a>
+            </p>
+            <p class="control">
+                <a href="{{ url_for('history.history', limit=10, offset=0) }}" class="button {% if limit == 10 %}is-primary{% endif %}">10</a>
+            </p>
+            <p class="control">
+                <a href="{{ url_for('history.history', limit=20, offset=0) }}" class="button {% if limit == 20 %}is-primary{% endif %}">20</a>
+            </p>
+            <p class="control">
+                <a href="{{ url_for('history.history', limit=30, offset=0) }}" class="button {% if limit == 30 %}is-primary{% endif %}">30</a>
+            </p>
+            <p class="control">
+                <a href="{{ url_for('history.history', limit=50, offset=0) }}" class="button {% if limit == 50 %}is-primary{% endif %}">50</a>
+            </p>
+            <p class="control">
+                <a href="{{ url_for('history.history', limit=100, offset=0) }}" class="button {% if limit == 100 %}is-primary{% endif %}">100</a>
+            </p>
+        </div>
+        <table class="table is-striped" style="font-size: smaller;">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">{% trans %}Date & Time{% endtrans %}</th>
+                    <th style="width: 15%;">{% trans %}User{% endtrans %}</th>
+                    <th style="width: 55%;">{% trans %}Song{% endtrans %}</th>
+                    <th style="width: 15%;">{% trans %}Actions{% endtrans %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for timestamp, user, song, completed in last_plays %}
+                <tr style="padding: 0.25rem 0;">
+                            <td style="padding: 0.25rem;"><a href="{{ url_for('history.history', date=timestamp[:10], user=user_filter, limit=limit, offset=0) }}">{{ timestamp[:10] }}</a> {{ timestamp[11:16] }}</td>
+                    <td style="padding: 0.25rem;"><a href="{{ url_for('history.history', user=user, limit=limit, offset=0) }}">{{ user }}</a></td>
+                    <td style="padding: 0.25rem; word-break: break-word;">{{ song }}{% if not completed %} (skipped){% endif %}</td>
+                    <td style="padding: 0.25rem;">
+                        <form method="post" action="{{ url_for('queue.enqueue_by_title') }}" style="display: inline;">
+                            <input type="hidden" name="song_title" value="{{ song }}">
+                            <input type="hidden" name="user" value="{{ user }}">
+                            <button type="submit" class="button is-small" title="Add this song to the queue"><i class="icon icon-list-add"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not last_plays and (date_filter or user_filter) %}
+        <div class="notification is-info">
+            <p>{% trans %}No songs found matching the current filters.{% endtrans %}</p>
+            <p><a href="{{ url_for('history.history', limit=limit) }}">{% trans %}Clear filters to see all songs{% endtrans %}</a></p>
+        </div>
+        {% endif %}
+
+        {% if total_pages > 1 %}
+        <nav class="pagination" role="navigation" aria-label="pagination">
+            {% if has_previous %}
+            <a href="{{ url_for('history.history', limit=limit, offset=0, date=date_filter, user=user_filter) }}" class="pagination-previous" title="{% trans %}First page{% endtrans %}">{% trans %}First{% endtrans %}</a>
+            {% else %}
+            <span class="pagination-previous" disabled>{% trans %}First{% endtrans %}</span>
+            {% endif %}
+
+            {% if has_previous %}
+            <a href="{{ url_for('history.history', limit=limit, offset=prev_offset, date=date_filter, user=user_filter) }}" class="pagination-link" aria-label="Goto previous page">{% trans %}Previous{% endtrans %}</a>
+            {% else %}
+            <span class="pagination-link" disabled>{% trans %}Previous{% endtrans %}</span>
+            {% endif %}
+
+            <ul class="pagination-list">
+                <li>
+                    <span class="pagination-ellipsis">{% trans %}Page{% endtrans %} {{ current_page }} {% trans %}of{% endtrans %} {{ total_pages }}</span>
+                </li>
+            </ul>
+
+            {% if has_next %}
+            <a href="{{ url_for('history.history', limit=limit, offset=next_offset, date=date_filter, user=user_filter) }}" class="pagination-link" aria-label="Goto next page">{% trans %}Next{% endtrans %}</a>
+            {% else %}
+            <span class="pagination-link" disabled>{% trans %}Next{% endtrans %}</span>
+            {% endif %}
+
+            {% if has_next %}
+            <a href="{{ url_for('history.history', limit=limit, offset=(total_pages-1)*limit, date=date_filter, user=user_filter) }}" class="pagination-next" title="{% trans %}Last page{% endtrans %}">{% trans %}Last{% endtrans %}</a>
+            {% else %}
+            <span class="pagination-next" disabled>{% trans %}Last{% endtrans %}</span>
+            {% endif %}
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<div class="columns">
+            <div class="column">
+                <h2 class="subtitle">{% trans %}Top Songs Today{% endtrans %}</h2>
+                <table class="table is-striped" style="font-size: smaller;">
+                    <thead>
+                        <tr>
+                            <th style="width: 70%;">{% trans %}Song{% endtrans %}</th>
+                            <th style="width: 15%;">{% trans %}Plays{% endtrans %}</th>
+                            <th style="width: 15%;">{% trans %}Actions{% endtrans %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for song, count in top_songs_today %}
+                        <tr style="padding: 0.25rem 0;">
+                            <td style="padding: 0.25rem; word-break: break-word;">{{ song }}</td>
+                            <td style="padding: 0.25rem;">{{ count }}</td>
+                            <td style="padding: 0.25rem;">
+                                <form method="post" action="{{ url_for('queue.enqueue_by_title') }}" style="display: inline;">
+                                    <input type="hidden" name="song_title" value="{{ song }}">
+                                    <input type="hidden" name="user" value="History">
+                                    <button type="submit" class="button is-small" title="Add this song to the queue"><i class="icon icon-list-add"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="column">
+                <h2 class="subtitle">{% trans %}Top Songs This Month{% endtrans %}</h2>
+                <table class="table is-striped" style="font-size: smaller;">
+                    <thead>
+                        <tr>
+                            <th style="width: 70%;">{% trans %}Song{% endtrans %}</th>
+                            <th style="width: 15%;">{% trans %}Plays{% endtrans %}</th>
+                            <th style="width: 15%;">{% trans %}Actions{% endtrans %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for song, count in top_songs_month %}
+                        <tr style="padding: 0.25rem 0;">
+                            <td style="padding: 0.25rem; word-break: break-word;">{{ song }}</td>
+                            <td style="padding: 0.25rem;">{{ count }}</td>
+                            <td style="padding: 0.25rem;">
+                                <form method="post" action="{{ url_for('queue.enqueue_by_title') }}" style="display: inline;">
+                                    <input type="hidden" name="song_title" value="{{ song }}">
+                                    <input type="hidden" name="user" value="History">
+                                    <button type="submit" class="button is-small" title="Add this song to the queue"><i class="icon icon-list-add"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="columns">
+            <div class="column">
+                <h2 class="subtitle">{% trans %}Top Songs This Year{% endtrans %}</h2>
+                <table class="table is-striped" style="font-size: smaller;">
+                    <thead>
+                        <tr>
+                            <th style="width: 70%;">{% trans %}Song{% endtrans %}</th>
+                            <th style="width: 15%;">{% trans %}Plays{% endtrans %}</th>
+                            <th style="width: 15%;">{% trans %}Actions{% endtrans %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for song, count in top_songs_year %}
+                        <tr style="padding: 0.25rem 0;">
+                            <td style="padding: 0.25rem; word-break: break-word;">{{ song }}</td>
+                            <td style="padding: 0.25rem;">{{ count }}</td>
+                            <td style="padding: 0.25rem;">
+                                <form method="post" action="{{ url_for('queue.enqueue_by_title') }}" style="display: inline;">
+                                    <input type="hidden" name="song_title" value="{{ song }}">
+                                    <input type="hidden" name="user" value="History">
+                                    <button type="submit" class="button is-small" title="Add this song to the queue"><i class="icon icon-list-add"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="column">
+                <h2 class="subtitle">{% trans %}Top Songs All Time{% endtrans %}</h2>
+                <table class="table is-striped" style="font-size: smaller;">
+                    <thead>
+                        <tr>
+                            <th style="width: 70%;">{% trans %}Song{% endtrans %}</th>
+                            <th style="width: 15%;">{% trans %}Plays{% endtrans %}</th>
+                            <th style="width: 15%;">{% trans %}Actions{% endtrans %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for song, count in top_songs %}
+                        <tr style="padding: 0.25rem 0;">
+                            <td style="padding: 0.25rem; word-break: break-word;">{{ song }}</td>
+                            <td style="padding: 0.25rem;">{{ count }}</td>
+                            <td style="padding: 0.25rem;">
+                                <form method="post" action="{{ url_for('queue.enqueue_by_title') }}" style="display: inline;">
+                                    <input type="hidden" name="song_title" value="{{ song }}">
+                                    <input type="hidden" name="user" value="History">
+                                    <button type="submit" class="button is-small" title="Add this song to the queue"><i class="icon icon-list-add"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="columns">
+            <div class="column">
+                <h2 class="subtitle">{% trans %}Top Users{% endtrans %}</h2>
+
+                <div class="field is-grouped" style="margin-bottom: 0.5rem;">
+                    <p class="control">
+                        <a href="{{ url_for('history.history', users_limit=5, users_offset=0, users_sort=top_users_sort, users_order=top_users_order, date=date_filter, user=user_filter, limit=limit, offset=offset) }}" class="button {% if top_users_limit == 5 %}is-primary{% endif %}">5</a>
+                    </p>
+                    <p class="control">
+                        <a href="{{ url_for('history.history', users_limit=10, users_offset=0, users_sort=top_users_sort, users_order=top_users_order, date=date_filter, user=user_filter, limit=limit, offset=offset) }}" class="button {% if top_users_limit == 10 %}is-primary{% endif %}">10</a>
+                    </p>
+                    <p class="control">
+                        <a href="{{ url_for('history.history', users_limit=20, users_offset=0, users_sort=top_users_sort, users_order=top_users_order, date=date_filter, user=user_filter, limit=limit, offset=offset) }}" class="button {% if top_users_limit == 20 %}is-primary{% endif %}">20</a>
+                    </p>
+                </div>
+
+                <table class="table is-striped" style="font-size: smaller;">
+                    <thead>
+                        <tr>
+                            <th style="width: 70%;">
+                                <a href="{{ url_for('history.history', users_sort='user', users_order='ASC' if (top_users_sort == 'user' and top_users_order == 'DESC') else 'DESC', users_limit=top_users_limit, users_offset=0, date=date_filter, user=user_filter, limit=limit, offset=offset) }}">
+                                    {% trans %}User{% endtrans %}
+                                    {% if top_users_sort == 'user' %}
+                                        {% if top_users_order == 'ASC' %} ↑{% else %} ↓{% endif %}
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th style="width: 30%;">
+                                <a href="{{ url_for('history.history', users_sort='count', users_order='ASC' if (top_users_sort == 'count' and top_users_order == 'DESC') else 'DESC', users_limit=top_users_limit, users_offset=0, date=date_filter, user=user_filter, limit=limit, offset=offset) }}">
+                                    {% trans %}Plays{% endtrans %}
+                                    {% if top_users_sort == 'count' %}
+                                        {% if top_users_order == 'ASC' %} ↑{% else %} ↓{% endif %}
+                                    {% endif %}
+                                </a>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user, count in top_users %}
+                        <tr style="padding: 0.25rem 0;">
+                            <td style="padding: 0.25rem;"><a href="{{ url_for('history.history', user=user, date=date_filter, limit=limit, offset=0) }}">{{ user }}</a></td>
+                            <td style="padding: 0.25rem;">{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                {% if top_users_total_pages > 1 %}
+                <nav class="pagination is-small" role="navigation" aria-label="top users pagination">
+                    {% if top_users_has_previous %}
+                    <a href="{{ url_for('history.history', users_limit=top_users_limit, users_offset=0, users_sort=top_users_sort, users_order=top_users_order, date=date_filter, user=user_filter, limit=limit, offset=offset) }}" class="pagination-previous" title="{% trans %}First page{% endtrans %}">{% trans %}First{% endtrans %}</a>
+                    {% else %}
+                    <span class="pagination-previous" disabled>{% trans %}First{% endtrans %}</span>
+                    {% endif %}
+
+                    {% if top_users_has_previous %}
+                    <a href="{{ url_for('history.history', users_limit=top_users_limit, users_offset=top_users_prev_offset, users_sort=top_users_sort, users_order=top_users_order, date=date_filter, user=user_filter, limit=limit, offset=offset) }}" class="pagination-link" aria-label="Goto previous page">{% trans %}Previous{% endtrans %}</a>
+                    {% else %}
+                    <span class="pagination-link" disabled>{% trans %}Previous{% endtrans %}</span>
+                    {% endif %}
+
+                    <ul class="pagination-list">
+                        <li>
+                            <span class="pagination-ellipsis">{% trans %}Page{% endtrans %} {{ top_users_current_page }} {% trans %}of{% endtrans %} {{ top_users_total_pages }}</span>
+                        </li>
+                    </ul>
+
+                    {% if top_users_has_next %}
+                    <a href="{{ url_for('history.history', users_limit=top_users_limit, users_offset=top_users_next_offset, users_sort=top_users_sort, users_order=top_users_order, date=date_filter, user=user_filter, limit=limit, offset=offset) }}" class="pagination-link" aria-label="Goto next page">{% trans %}Next{% endtrans %}</a>
+                    {% else %}
+                    <span class="pagination-link" disabled>{% trans %}Next{% endtrans %}</span>
+                    {% endif %}
+
+                    {% if top_users_has_next %}
+                    <a href="{{ url_for('history.history', users_limit=top_users_limit, users_offset=(top_users_total_pages-1)*top_users_limit, users_sort=top_users_sort, users_order=top_users_order, date=date_filter, user=user_filter, limit=limit, offset=offset) }}" class="pagination-next" title="{% trans %}Last page{% endtrans %}">{% trans %}Last{% endtrans %}</a>
+                    {% else %}
+                    <span class="pagination-next" disabled>{% trans %}Last{% endtrans %}</span>
+                    {% endif %}
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+{% endblock %}

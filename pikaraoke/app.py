@@ -19,6 +19,7 @@ from pikaraoke.constants import LANGUAGES
 from pikaraoke.lib.args import parse_pikaraoke_args
 from pikaraoke.lib.browser import Browser
 from pikaraoke.lib.current_app import get_karaoke_instance
+from pikaraoke.lib.database import PlayDatabase
 from pikaraoke.lib.ffmpeg import is_ffmpeg_installed
 from pikaraoke.lib.file_resolver import delete_tmp_dir
 from pikaraoke.lib.get_platform import (
@@ -28,10 +29,12 @@ from pikaraoke.lib.get_platform import (
     is_windows,
 )
 from pikaraoke.routes.admin import admin_bp
+from pikaraoke.routes.admin_history import admin_history_bp
 from pikaraoke.routes.background_music import background_music_bp
 from pikaraoke.routes.batch_song_renamer import batch_song_renamer_bp
 from pikaraoke.routes.controller import controller_bp
 from pikaraoke.routes.files import files_bp
+from pikaraoke.routes.history import history_bp
 from pikaraoke.routes.home import home_bp
 from pikaraoke.routes.images import images_bp
 from pikaraoke.routes.info import info_bp
@@ -46,8 +49,14 @@ _ = flask_babel.gettext
 
 from gevent.pywsgi import WSGIServer
 
-args = parse_pikaraoke_args()
-socketio = SocketIO(async_mode="gevent", cors_allowed_origins=args.url)
+# Parse args only when running as main
+if __name__ == "__main__":
+    args = parse_pikaraoke_args()
+    socketio = SocketIO(async_mode="gevent", cors_allowed_origins=args.url)
+else:
+    args = None
+    socketio = SocketIO(async_mode="gevent")
+
 babel = Babel()
 
 
@@ -87,6 +96,8 @@ app.register_blueprint(info_bp)
 app.register_blueprint(splash_bp)
 app.register_blueprint(controller_bp)
 app.register_blueprint(nowplaying_bp)
+app.register_blueprint(history_bp)
+app.register_blueprint(admin_history_bp)
 
 
 def get_locale() -> str | None:
@@ -212,8 +223,6 @@ def main() -> None:
         cdg_pixel_scaling=args.cdg_pixel_scaling,
         streaming_format=args.streaming_format,
         additional_ytdl_args=getattr(args, "ytdl_args", None),
-        socketio=socketio,
-        preferred_language=args.preferred_language,
     )
 
     # expose karaoke object to the flask app
@@ -221,6 +230,12 @@ def main() -> None:
         app.config["KARAOKE_INSTANCE"] = k
         # Pass app instance to download manager for background thread context
         k.download_manager.app = app
+
+    # Populate database from log
+    try:
+        k.db.populate_from_log(k.log_file_path)
+    except Exception as e:
+        logging.error(f"Error populating database from log: {e}")
 
     # expose shared configuration variables to the flask app
     app.config["ADMIN_PASSWORD"] = args.admin_password

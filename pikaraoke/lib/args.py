@@ -312,6 +312,18 @@ def parse_pikaraoke_args() -> argparse.Namespace:
         help="Enable Swagger API documentation at /apidocs.",
         required=False,
     )
+    parser.add_argument(
+        "--log-file",
+        help="Path to log file for song plays (default: pikaraoke_plays.log)",
+        default="pikaraoke_plays.log",
+        required=False,
+    )
+    parser.add_argument(
+        "--db-file",
+        help="Path to database file for song plays (default: pikaraoke_plays.db)",
+        default="pikaraoke_plays.db",
+        required=False,
+    )
 
     args = parser.parse_args()
 

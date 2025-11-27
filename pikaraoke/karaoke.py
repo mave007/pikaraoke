@@ -19,6 +19,7 @@ import qrcode
 from flask_babel import _
 from qrcode.image.pure import PyPNGImage
 
+from pikaraoke.lib.database import PlayDatabase
 from pikaraoke.lib.download_manager import DownloadManager
 from pikaraoke.lib.ffmpeg import (
     get_ffmpeg_version,
@@ -129,6 +130,8 @@ class Karaoke:
         additional_ytdl_args: str | None = None,
         socketio=None,
         preferred_language: str | None = None,
+        log_file_path: str = "pikaraoke_plays.log",
+        db_file_path: str = "pikaraoke_plays.db",
     ) -> None:
         """Initialize the Karaoke instance.
 
@@ -166,7 +169,18 @@ class Karaoke:
             additional_ytdl_args: Additional yt-dlp command arguments.
             socketio: SocketIO instance for real-time event emission.
             preferred_language: Language code for UI (e.g., 'en', 'de_DE').
+            log_file_path: Path to log file for song plays.
+            db_file_path: Path to database file for song plays.
         """
+        limit_user_songs_by=0,
+        avsync=0,
+        config_file_path="config.ini",
+        cdg_pixel_scaling=False,
+        additional_ytdl_args=None,
+        log_file_path="pikaraoke_plays.log",
+        db_file_path="pikaraoke_plays.db",
+    ) -> None:
+        """Initialize the Karaoke instance.
         logging.basicConfig(
             format="[%(asctime)s] %(levelname)s: %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
@@ -243,6 +257,10 @@ class Karaoke:
         self.youtubedl_path = youtubedl_path
         self.youtubedl_proxy = youtubedl_proxy
         self.additional_ytdl_args = additional_ytdl_args
+        self.log_file_path = log_file_path
+        self.db_file_path = db_file_path
+        # Initialize database for play logging
+        self.db = PlayDatabase(self.db_file_path)
         self.logo_path = self.default_logo_path if logo_path == None else logo_path
         self.hide_overlay = (
             pref if (pref := self.get_user_preference("hide_overlay")) is not None else hide_overlay
@@ -673,6 +691,12 @@ class Karaoke:
             if reason != "complete":
                 # MSG: Message shown when the song ends abnormally
                 self.send_notification(_("Song ended abnormally: %s") % reason, "danger")
+        # Log song plays (both completed and skipped)
+        if self.now_playing and self.now_playing_user:
+            completed = reason == "complete"
+            self.db.add_play(
+                self.now_playing, self.now_playing_user, self.now_playing_duration, completed
+            )
         self.reset_now_playing()
         self.kill_ffmpeg()
         # Small delay to ensure FFmpeg fully terminates and file handles close
@@ -793,7 +817,7 @@ class Karaoke:
         """
         if self.is_song_in_queue(song_path):
             logging.warning("Song is already in queue, will not add: " + song_path)
-            return False
+            return [False, _("Song is already in the queue")]
         elif self.is_user_limited(user):
             logging.debug("User limited by: " + str(self.limit_user_songs_by))
             return [

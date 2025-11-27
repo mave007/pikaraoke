@@ -601,7 +601,11 @@
     </div>
   </div>
   {% endif %}
-  <div></div>
+  <div id="splash-history">
+    <a href="{{ url_for('history.history') }}" title="View Song History">
+      <i class="icon icon-th-list is-size-3 has-text-white"></i>
+    </a>
+  </div>
   <div
     id="up-next"
     class="has-text-warning is-size-5 stroke has-text-right"
@@ -765,6 +769,9 @@
   }
   #qr-code {
     max-width: 25%;
+  }
+  #splash-history {
+    text-align: center;
   }
   #up-next {
     max-width: 75%;

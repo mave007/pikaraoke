@@ -63,8 +63,14 @@
 }
 
 input {
-  /* prevents mobile zooming */
+  /* prevents mobile zooming, but allow smaller font-size for compact tables */
   font-size: 16px !important;
+}
+
+table[style*="font-size: smaller"] input,
+input[style*="font-size: 0.875rem"] {
+  /* Allow smaller font-size for inputs in compact tables */
+  font-size: 0.875rem !important;
 }
 
 table {
