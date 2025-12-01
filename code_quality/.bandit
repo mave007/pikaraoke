@@ -1,0 +1,30 @@
+# Bandit configuration for PiKaraoke
+# See https://bandit.readthedocs.io/en/latest/config.html
+
+[bandit]
+# Directories to exclude from scanning
+exclude_dirs = [
+    '/tests',
+    '/.venv',
+    '/venv',
+    '/__pycache__'
+]
+
+# Tests to skip
+skips = [
+    # B603: subprocess without shell=True (we need shell for some commands)
+    'B603',
+    # B607: Starting a process with a partial path (acceptable for system commands)
+    'B607'
+]
+
+# Test IDs to run (comment out to run all)
+# tests = ['B201', 'B301']
+
+# Severity level threshold (LOW, MEDIUM, HIGH)
+# Only report issues with this severity or higher
+# level = MEDIUM
+
+# Confidence level threshold (LOW, MEDIUM, HIGH)
+# Only report issues with this confidence or higher
+# confidence = MEDIUM
