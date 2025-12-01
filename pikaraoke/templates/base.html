@@ -72,10 +72,13 @@
 
 
     function showNotification(message, categoryClass, timeout=3000) {
+      // Remove all possible Bulma notification category classes before adding the new one
+      $("#notification-alt").removeClass("is-success is-warning is-danger is-info is-primary is-link");
       $("#notification-alt").addClass(categoryClass)
       $("#notification-alt div").text(message)
       $("#notification-alt").fadeIn()
-      // Removed auto-hide to make notification persistent until user closes it
+      setTimeout(function () {$("#notification-alt").fadeOut()}, timeout)
+      setTimeout(function () {$("#notification-alt").removeClass(categoryClass)}, timeout + 750)
     }
 
     function setUserCookie(reload=false) {
