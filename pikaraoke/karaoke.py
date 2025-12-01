@@ -485,7 +485,7 @@ class Karaoke:
         logging.debug("Generating URL QR code")
         qr = qrcode.QRCode(
             version=1,
-            box_size=1,
+            box_size=10,  # Increased from 1 to 10 for higher resolution
             border=4,
         )
         qr.add_data(self.url)
