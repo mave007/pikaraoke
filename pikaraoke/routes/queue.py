@@ -1,6 +1,7 @@
 """Song queue management routes."""
 
 import json
+from urllib.parse import unquote
 
 import flask_babel
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
@@ -11,11 +12,6 @@ from pikaraoke.lib.current_app import (
     get_site_name,
     is_admin,
 )
-
-try:
-    from urllib.parse import unquote
-except ImportError:
-    from urllib import unquote
 
 _ = flask_babel.gettext
 

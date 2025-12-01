@@ -166,15 +166,15 @@ karaoke_instance = None
 cleanup_done = False
 
 
-def cleanup_and_exit(signum=None, frame=None):
+def cleanup_and_exit(signum=None, frame=None):  # type: ignore[no-untyped-def]
     """Gracefully shutdown the application and cleanup resources."""
     global cleanup_done
-    
+
     # Prevent double cleanup
     if cleanup_done:
         return
     cleanup_done = True
-    
+
     if signum:
         signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
         logging.info(f"Received {signal_name}, shutting down gracefully...")
@@ -190,12 +190,12 @@ def cleanup_and_exit(signum=None, frame=None):
     if driver is not None:
         try:
             # Temporarily disable urllib3 warnings during shutdown
-            urllib3_logger = logging.getLogger('urllib3')
+            urllib3_logger = logging.getLogger("urllib3")
             original_level = urllib3_logger.level
             urllib3_logger.setLevel(logging.CRITICAL)
-            
+
             driver.quit()
-            
+
             # Restore original logging level
             urllib3_logger.setLevel(original_level)
         except Exception:
@@ -209,7 +209,7 @@ def cleanup_and_exit(signum=None, frame=None):
         pass
 
     logging.info("PiKaraoke has shut down successfully. Goodbye!")
-    sys.exit(0)
+    sys.exit(0)  # type: ignore[unreachable]
 
 
 def main() -> None:
