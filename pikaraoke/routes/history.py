@@ -1,7 +1,6 @@
 from flask import Blueprint, flash, render_template, request
 
 from pikaraoke.lib.current_app import get_karaoke_instance, is_admin
-from pikaraoke.lib.database import PlayDatabase
 
 history_bp = Blueprint("history", __name__)
 
@@ -9,7 +8,7 @@ history_bp = Blueprint("history", __name__)
 @history_bp.route("/history")
 def history():
     k = get_karaoke_instance()
-    db = PlayDatabase()
+    db = k.db
     limit = int(request.args.get("limit", 10))
     offset = int(request.args.get("offset", 0))
     date_filter = request.args.get("date")

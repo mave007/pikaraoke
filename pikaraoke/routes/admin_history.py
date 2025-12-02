@@ -1,7 +1,6 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from pikaraoke.lib.current_app import get_karaoke_instance, is_admin
-from pikaraoke.lib.database import PlayDatabase
 
 admin_history_bp = Blueprint("admin_history", __name__)
 
@@ -10,7 +9,8 @@ admin_history_bp = Blueprint("admin_history", __name__)
 def admin_history():
     if not is_admin():
         return redirect(url_for("home.home"))
-    db = PlayDatabase()
+    k = get_karaoke_instance()
+    db = k.db
     user_filter = request.args.get("user", "")
     date_filter = request.args.get("date", "")
     try:
@@ -43,7 +43,8 @@ def admin_history():
 def update_play():
     if not is_admin():
         return redirect(url_for("home.home"))
-    db = PlayDatabase()
+    k = get_karaoke_instance()
+    db = k.db
     play_id = request.form.get("play_id")
     user = request.form.get("user")
     song = request.form.get("song")
@@ -59,7 +60,8 @@ def update_play():
 def set_alias():
     if not is_admin():
         return redirect(url_for("home.home"))
-    db = PlayDatabase()
+    k = get_karaoke_instance()
+    db = k.db
     alias = request.form.get("alias")
     canonical = request.form.get("canonical")
     try:
@@ -74,7 +76,8 @@ def set_alias():
 def remove_alias():
     if not is_admin():
         return redirect(url_for("home.home"))
-    db = PlayDatabase()
+    k = get_karaoke_instance()
+    db = k.db
     alias = request.form.get("alias")
     try:
         db.remove_user_alias(alias)
