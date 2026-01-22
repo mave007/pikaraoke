@@ -592,7 +592,7 @@
   <div id="qr-code">
     <img
       src="{{ url_for('images.qrcode') }}"
-      width="100px"
+      width="200px"
       style="image-rendering: pixelated"
       alt="qrcode"
     />
@@ -601,8 +601,12 @@
     </div>
   </div>
   {% endif %}
-  <div></div>
-  <div
+<!--   <div id="splash-history">
+    <a href="{{ url_for('history.history') }}" title="View Song History">
+      <i class="icon icon-th-list is-size-3 has-text-white"></i>
+    </a>
+  </div>
+ -->  <div
     id="up-next"
     class="has-text-warning is-size-5 stroke has-text-right"
     style="display: none"
@@ -701,11 +705,11 @@
   <div id="screensaver" style="visibility: hidden">
     <div id="dvd">
       {% if not hide_url %}
-      <div>
-        <div style="text-align: right">
-          <img src="{{ url_for('images.qrcode') }}" width="30%" height="30%" />
+      <div id="qr-container">
+        <div class="qr-image">
+          <img src="{{ url_for('images.qrcode') }}" width="100%" height="100%" />
         </div>
-        <div>{{ hostap_info[0] }}<br />{{ url }}</div>
+        <div class="url-text">{{ url }}</div>
       </div>
       {% endif %}
     </div>
@@ -765,6 +769,9 @@
   }
   #qr-code {
     max-width: 25%;
+  }
+  #splash-history {
+    text-align: center;
   }
   #up-next {
     max-width: 75%;

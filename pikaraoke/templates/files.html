@@ -29,9 +29,16 @@
 			});
 		});
 	});
-</script>
+          // {# MSG: Notification when a song gets added to the queue.  The song name comes after this string. #}
+          showNotification(obj.message, "is-success");
+        } else {
+          // {# MSG: Notification when a song does not get added to the queue.  The song name comes after this string. #}
+          showNotification(obj.message, "is-danger");
+        }
+      });
+    });
+  });
 
-{% endblock %} {% block header %}
 <h1>
 	{% block title %} {% if letter %} {{title}}: "{{ letter.upper() }}" {% else %} {{title}} {% endif %} {% endblock %}
 </h1>

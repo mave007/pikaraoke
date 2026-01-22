@@ -1,5 +1,3 @@
-// Suggested vscode settings
-
 {
   "pylint.args": ["--rcfile=${workspaceFolder}/code_quality/.pylintrc"],
   "[python]": {

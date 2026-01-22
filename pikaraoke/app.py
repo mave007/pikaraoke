@@ -6,6 +6,7 @@ monkey.patch_all()
 
 import logging
 import os
+import signal
 import sys
 from urllib.parse import quote
 
@@ -19,6 +20,7 @@ from pikaraoke.constants import LANGUAGES
 from pikaraoke.lib.args import parse_pikaraoke_args
 from pikaraoke.lib.browser import Browser
 from pikaraoke.lib.current_app import get_karaoke_instance
+from pikaraoke.lib.database import PlayDatabase
 from pikaraoke.lib.ffmpeg import is_ffmpeg_installed
 from pikaraoke.lib.file_resolver import delete_tmp_dir
 from pikaraoke.lib.get_platform import (
@@ -28,10 +30,12 @@ from pikaraoke.lib.get_platform import (
     is_windows,
 )
 from pikaraoke.routes.admin import admin_bp
+from pikaraoke.routes.admin_history import admin_history_bp
 from pikaraoke.routes.background_music import background_music_bp
 from pikaraoke.routes.batch_song_renamer import batch_song_renamer_bp
 from pikaraoke.routes.controller import controller_bp
 from pikaraoke.routes.files import files_bp
+from pikaraoke.routes.history import history_bp
 from pikaraoke.routes.home import home_bp
 from pikaraoke.routes.images import images_bp
 from pikaraoke.routes.info import info_bp
@@ -46,8 +50,14 @@ _ = flask_babel.gettext
 
 from gevent.pywsgi import WSGIServer
 
-args = parse_pikaraoke_args()
-socketio = SocketIO(async_mode="gevent", cors_allowed_origins=args.url)
+# Parse args only when running as main
+if __name__ == "__main__":
+    args = parse_pikaraoke_args()
+    socketio = SocketIO(async_mode="gevent", cors_allowed_origins=args.url)
+else:
+    args = None
+    socketio = SocketIO(async_mode="gevent")
+
 babel = Babel()
 
 
@@ -87,6 +97,8 @@ app.register_blueprint(info_bp)
 app.register_blueprint(splash_bp)
 app.register_blueprint(controller_bp)
 app.register_blueprint(nowplaying_bp)
+app.register_blueprint(history_bp)
+app.register_blueprint(admin_history_bp)
 
 
 def get_locale() -> str | None:
@@ -148,12 +160,65 @@ def clear_notification() -> None:
     k.reset_now_playing_notification()
 
 
+# Global references for cleanup
+driver = None
+karaoke_instance = None
+cleanup_done = False
+
+
+def cleanup_and_exit(signum=None, frame=None):  # type: ignore[no-untyped-def]
+    """Gracefully shutdown the application and cleanup resources."""
+    global cleanup_done
+
+    # Prevent double cleanup
+    if cleanup_done:
+        return
+    cleanup_done = True
+
+    if signum:
+        signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
+        logging.info(f"Received {signal_name}, shutting down gracefully...")
+
+    # Stop karaoke instance
+    if karaoke_instance:
+        try:
+            karaoke_instance.stop()
+        except Exception:
+            pass
+
+    # Close browser - suppress urllib3 logging to avoid connection retry warnings
+    if driver is not None:
+        try:
+            # Temporarily disable urllib3 warnings during shutdown
+            urllib3_logger = logging.getLogger("urllib3")
+            original_level = urllib3_logger.level
+            urllib3_logger.setLevel(logging.CRITICAL)
+
+            driver.quit()
+
+            # Restore original logging level
+            urllib3_logger.setLevel(original_level)
+        except Exception:
+            # Browser may have already closed, ignore errors
+            pass
+
+    # Cleanup temp files
+    try:
+        delete_tmp_dir()
+    except Exception:
+        pass
+
+    logging.info("PiKaraoke has shut down successfully. Goodbye!")
+    sys.exit(0)  # type: ignore[unreachable]
+
+
 def main() -> None:
     """Main entry point for the PiKaraoke application.
 
     Initializes the Flask server, Karaoke engine, and splash screen.
     Blocks until the application is terminated.
     """
+    global driver, karaoke_instance
     platform = get_platform()
 
     args = parse_pikaraoke_args()
@@ -212,9 +277,12 @@ def main() -> None:
         cdg_pixel_scaling=args.cdg_pixel_scaling,
         streaming_format=args.streaming_format,
         additional_ytdl_args=getattr(args, "ytdl_args", None),
-        socketio=socketio,
-        preferred_language=args.preferred_language,
     )
+    karaoke_instance = k
+
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, cleanup_and_exit)
+    signal.signal(signal.SIGTERM, cleanup_and_exit)
 
     # expose karaoke object to the flask app
     with app.app_context():
@@ -222,18 +290,21 @@ def main() -> None:
         # Pass app instance to download manager for background thread context
         k.download_manager.app = app
 
+    # Populate database from log
+    try:
+        k.db.populate_from_log(k.log_file_path)
+    except Exception as e:
+        logging.error(f"Error populating database from log: {e}")
+
     # expose shared configuration variables to the flask app
     app.config["ADMIN_PASSWORD"] = args.admin_password
     app.config["SITE_NAME"] = "PiKaraoke"
 
     # Expose some functions to jinja templates
-    app.jinja_env.globals.update(filename_from_path=k.filename_from_path)
-    app.jinja_env.globals.update(url_escape=quote)
-
-    k.upgrade_youtubedl()
-
     server = WSGIServer(("0.0.0.0", int(args.port)), app, log=None, error_log=logging.getLogger())
     server.start()
+
+    # force headless mode when on Android
 
     # Handle sigterm, apparently cherrypy won't shut down without explicit handling
     # signal.signal(signal.SIGTERM, lambda signum, stack_frame: k.stop())
@@ -257,14 +328,12 @@ def main() -> None:
         logging.info(f"Swagger API docs enabled at {k.url}/apidocs")
 
     # Start the karaoke process
-    k.run()
-
-    # Close running browser when done
-    if browser is not None:
-        browser.close()
-
-    delete_tmp_dir()
-    sys.exit()
+    try:
+        k.run()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        cleanup_and_exit()
 
 
 if __name__ == "__main__":

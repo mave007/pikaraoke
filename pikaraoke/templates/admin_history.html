@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block header %}
+<title>{% trans %}Admin History{% endtrans %}</title>
+{% endblock %}
+
+{% block content %}
+<h1 class="title">{% trans %}Admin History Management{% endtrans %}</h1>
+
+<h2 class="subtitle">{% trans %}User Aliases{% endtrans %}</h2>
+<p class="help">{% trans %}Create aliases to map alternative user names to a canonical user name. All plays by the alias will be attributed to the canonical user.{% endtrans %}</p>
+
+<div class="field has-addons">
+    <div class="control">
+        <input class="input" type="text" name="alias" id="alias-input" placeholder="Alternative name (e.g., 'john')" required>
+    </div>
+    <div class="control">
+        <span class="button is-static">→</span>
+    </div>
+    <div class="control">
+        <input class="input" type="text" name="canonical" id="canonical-input" placeholder="Canonical name (e.g., 'John')" required>
+    </div>
+    <div class="control">
+        <button class="button is-primary" onclick="setAlias()">{% trans %}Set Alias{% endtrans %}</button>
+    </div>
+</div>
+
+<form method="post" action="{{ url_for('admin_history.set_alias') }}" id="alias-form" style="display: none;">
+    <input type="hidden" name="alias" id="alias-hidden">
+    <input type="hidden" name="canonical" id="canonical-hidden">
+</form>
+
+{% if aliases %}
+<table class="table is-striped is-narrow">
+    <thead>
+        <tr>
+            <th>{% trans %}Alias{% endtrans %}</th>
+            <th></th>
+            <th>{% trans %}Canonical User{% endtrans %}</th>
+            <th>{% trans %}Actions{% endtrans %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alias, canonical in aliases %}
+        <tr>
+            <td><code>{{ alias }}</code></td>
+            <td>→</td>
+            <td><code>{{ canonical }}</code></td>
+            <td>
+                <form method="post" action="{{ url_for('admin_history.remove_alias') }}" style="display:inline;" onsubmit="return confirm('Remove alias \'{{ alias }}\'? This will not change existing plays.')">
+                    <input type="hidden" name="alias" value="{{ alias }}">
+                    <button class="button is-small is-danger" type="submit">{% trans %}Remove{% endtrans %}</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+        <h2 class="subtitle">{% trans %}Edit Plays{% endtrans %}</h2>
+        <form method="get" action="{{ url_for('admin_history.admin_history') }}">
+            <div class="field">
+                <label class="label">{% trans %}Filter by User{% endtrans %}</label>
+                <div class="control">
+                    <input class="input" type="text" name="user" value="{{ selected_user }}" list="users">
+                    <datalist id="users">
+                        {% for user in distinct_users %}
+                        <option value="{{ user }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+            </div>
+            <div class="field">
+                <label class="label">{% trans %}Filter by Date{% endtrans %}</label>
+                <div class="control">
+                    <input class="input" type="text" name="date" value="{{ selected_date }}" placeholder="YYYY-MM-DD" list="dates">
+                    <datalist id="dates">
+                        {% for date in distinct_dates %}
+                        <option value="{{ date }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+            </div>
+            <div class="control">
+                <button class="button" type="submit">{% trans %}Filter{% endtrans %}</button>
+            </div>
+        </form>
+
+        <datalist id="songs">
+            {% for song in distinct_songs %}
+            <option value="{{ song }}">
+            {% endfor %}
+        </datalist>
+
+        <table class="table is-striped" style="font-size: smaller;">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">{% trans %}Date & Time{% endtrans %}</th>
+                    <th style="width: 20%;">{% trans %}User{% endtrans %}</th>
+                    <th style="width: 60%;">{% trans %}Song{% endtrans %}</th>
+                    <th style="width: 5%;">{% trans %}Actions{% endtrans %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for play in plays %}
+                <tr style="padding: 0.25rem 0;">
+                    <td style="padding: 0.25rem; vertical-align: middle;" rowspan="2"><a href="{{ url_for('admin_history.admin_history', date=play[1][:10], user=selected_user) }}">{{ play[1][:10] }}</a> {{ play[1][11:16] }}</td>
+                    <td style="padding: 0.25rem;"><a href="{{ url_for('admin_history.admin_history', user=play[2], date=selected_date) }}">{{ play[2] }}</a></td>
+                    <td style="padding: 0.25rem; word-break: break-word;">{{ play[3] }}{% if not play[4] %} (skipped){% endif %}</td>
+                    <td style="padding: 0.25rem;" rowspan="2">
+                        <button class="button is-small" type="submit" form="update-form-{{ play[0] }}">{% trans %}Update{% endtrans %}</button>
+                    </td>
+                </tr>
+                <tr style="padding: 0.25rem 0;">
+                    <td style="padding: 0.25rem;">
+                        <form method="post" action="{{ url_for('admin_history.update_play') }}" id="update-form-{{ play[0] }}" style="display:inline;">
+                            <input type="hidden" name="play_id" value="{{ play[0] }}">
+                            <input type="text" name="user" placeholder="{{ play[2][:30] }}{% if play[2]|length > 30 %}...{% endif %}" list="users" style="width: 100%; max-width: 100%; overflow: hidden; border: 1px solid #dbdbdb; border-radius: 3px; padding: 0.25rem; font-size: 0.875rem; background: white;">
+                        </form>
+                    </td>
+                    <td style="padding: 0.25rem;">
+                        <input form="update-form-{{ play[0] }}" type="text" name="song" placeholder="{{ play[3][:50] }}{% if play[3]|length > 50 %}...{% endif %}" list="songs" style="width: 100%; max-width: 100%; overflow: hidden; border: 1px solid #dbdbdb; border-radius: 3px; padding: 0.25rem; font-size: 0.875rem; background: white;">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+<script>
+function setAlias() {
+    const alias = document.getElementById('alias-input').value.trim();
+    const canonical = document.getElementById('canonical-input').value.trim();
+
+    if (!alias || !canonical) {
+        alert('Both alias and canonical user are required');
+        return;
+    }
+
+    if (alias === canonical) {
+        alert('Alias and canonical user cannot be the same');
+        return;
+    }
+
+    document.getElementById('alias-hidden').value = alias;
+    document.getElementById('canonical-hidden').value = canonical;
+    document.getElementById('alias-form').submit();
+}
+</script>
+{% endblock %}

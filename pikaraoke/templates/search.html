@@ -326,8 +326,7 @@
 				});
 			}
 		});
-
-		//END SELECTIZE CHANGES
+    });
 
 		$("#youtube-link").attr("href", $("#search_result_selector").val());
 		$("#youtube-link").text($("#search_result_selector").val());
@@ -404,6 +403,35 @@
 				document.querySelector("#download-button").click();
 			})
 		);
+        var user = Cookies.get("user");
+        $.get("{{ url_for('search.download_ajax') }}?song=" + ytID + "&user=" + encodeURIComponent(user), function (data) {
+          var obj = data;
+          if (obj.success) {
+            showNotification(obj.message, "is-success");
+          } else {
+            showNotification(obj.message, "is-danger");
+          }
+        });
+      })
+    );
+
+    $("#download-form").on("submit", function(e) {
+      e.preventDefault();
+      $.ajax({
+        url: "{{ url_for('search.download') }}",
+        type: "post",
+        data: $("#download-form").serialize() + "&ajax=1",
+        success: function (data) {
+          var obj = data;
+          if (obj.success) {
+            showNotification(obj.message, "is-success");
+          } else {
+            showNotification(obj.message, "is-danger");
+          }
+        }
+      });
+    });
+  });
 
 
 

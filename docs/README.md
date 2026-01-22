@@ -18,19 +18,19 @@ Pikaraoke is independently developed and maintained. If you want to support this
 
 ## Features
 
-| **Feature**                 | **Description**                                               |
+| **Feature** | **Description** |
 | --------------------------- | ------------------------------------------------------------- |
-| Web Interface               | Multiple users can queue tracks from their smartphones        |
-| Player/Splash Screen        | Connection QR code and song queue metadata                    |
-| Searching/Browsing          | Search and rowse a local song library                         |
-| Adding New Songs            | Add new songs from Youtube                                    |
-| mp3 + cdg Support           | CDG file support, supports compressed .zip bundles            |
-| Playback Controls           | Pause, Skip, Restart, and volume control                      |
-| Queue Management            | Manage the song queue and change the order                    |
-| Key Change / Pitch Shifting | Adjust the pitch of songs                                     |
-| File Management             | Advanced editing of downloaded file names                     |
-| Admin Mode                  | Lock down features with admin mode                            |
-| Headless Mode               | Run a dedicated pikaraoke server and stream to remote browser |
+| Web Interface | Multiple users can queue tracks from their smartphones |
+| Player/Splash Screen | Connection QR code and song queue metadata |
+| Searching/Browsing | Search and rowse a local song library |
+| Adding New Songs | Add new songs from Youtube |
+| mp3 + cdg Support | CDG file support, supports compressed .zip bundles |
+| Playback Controls | Pause, Skip, Restart, and volume control |
+| Queue Management | Manage the song queue and change the order |
+| Key Change / Pitch Shifting | Adjust the pitch of songs |
+| File Management | Advanced editing of downloaded file names |
+| Admin Mode | Lock down features with admin mode |
+| Headless Mode | Run a dedicated pikaraoke server and stream to remote browser |
 
 ## Supported Devices / OS / Platforms
 

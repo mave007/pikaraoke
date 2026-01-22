@@ -1,9 +1,10 @@
 """Song queue management routes."""
 
 import json
+from urllib.parse import unquote
 
 import flask_babel
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
 from pikaraoke.lib.current_app import (
     broadcast_event,
@@ -11,11 +12,6 @@ from pikaraoke.lib.current_app import (
     get_site_name,
     is_admin,
 )
-
-try:
-    from urllib.parse import unquote
-except ImportError:
-    from urllib import unquote
 
 _ = flask_babel.gettext
 
@@ -72,9 +68,9 @@ def get_queue():
     """
     k = get_karaoke_instance()
     if len(k.queue) >= 1:
-        return json.dumps(k.queue)
+        return jsonify(k.queue)
     else:
-        return json.dumps([])
+        return jsonify([])
 
 
 @queue_bp.route("/queue/addrandom", methods=["GET"])
@@ -379,3 +375,47 @@ def delete_download_error(error_id):
         return json.dumps({"success": True})
     else:
         return json.dumps({"success": False, "error": "Error not found"}), 404
+
+
+@queue_bp.route("/queue/add_by_title", methods=["POST"])
+def enqueue_by_title():
+    k = get_karaoke_instance()
+    song_title = request.form.get("song_title")
+    user = request.form.get("user", "History")
+    if not song_title:
+        if "ajax" in request.form:
+            return jsonify(success=False, message="No song title provided")
+        else:
+            flash("No song title provided", "is-danger")
+            return redirect(url_for("history.history"))
+
+    # Find available songs matching the title
+    available_songs = k.get_available_songs()
+    matching_song = None
+    for song_path in available_songs:
+        if k.filename_from_path(song_path) == song_title:
+            matching_song = song_path
+            break
+
+    if matching_song:
+        rc = k.enqueue(matching_song, user)
+        if "ajax" in request.form:
+            return jsonify(success=rc[0], message=rc[1])
+        else:
+            if rc[0]:
+                flash(f"Added '{song_title}' to queue", "is-success")
+            else:
+                flash(rc[1], "is-danger")
+    else:
+        if "ajax" in request.form:
+            return jsonify(
+                success=False, message=f"Song '{song_title}' not found in available songs"
+            )
+        else:
+            flash(f"Song '{song_title}' not found in available songs", "is-warning")
+
+    broadcast_event("queue_update")
+    if "ajax" in request.form:
+        return jsonify(success=True, message=f"Added '{song_title}' to queue")
+    else:
+        return redirect(url_for("history.history"))
